@@ -1,0 +1,136 @@
+<% provide(:title, "About") %>
+<script src="d3.v3.min.js" charset="utf-8"></script>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/lodash.js/2.4.1/lodash.min.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script src="charts.js"></script>
+<style>
+
+.mean line{
+  stroke: gray;
+  fill: gray;
+  color:gray;
+}
+
+.bar{
+  fill: steelblue;
+}
+
+.bar .sum{
+  fill:black;
+}
+
+.dim {
+  fill: LightSteelBlue;
+}
+
+.highlight {
+  color: black;
+}
+
+.hidden{
+   visibility: hidden;
+}
+
+.chart text {
+  font: 10px sans-serif;
+  text-anchor: middle;
+}
+
+.axis text {
+  font: 12px sans-serif;
+  fill: gray;
+}
+
+.axis .highlight {
+  fill:black;
+  font-weight: bold
+}
+
+.axis path {
+  fill: none;
+  stroke: white;
+  shape-rendering: crispEdges;
+}
+
+
+
+
+/*.bar:hover {
+  fill: brown;
+}*/
+
+/*.axis {
+  font: 10px sans-serif;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.x.axis path {
+  display: none;
+}*/
+
+</style>
+
+<div class="chart2"></div>
+<div class="chart1"></div>
+
+
+<script>
+  // parse the ruby object and bring in raw
+  var raw = <%= raw @runs.to_json %>
+  var data = <%= raw @runs.to_json %>
+  
+    // DATA PREP
+
+  // Filter just run data
+  var data = data.filter(function(d) { return d.type == 'Run'; })
+
+  // Set hours to 0, make the date a date, not a string
+  data.forEach(function(d){d.start_date = new Date(d.start_date); d.start_date.setHours(0,0,0,0)})
+  
+  // Dissolve/group/nest data by date, summing if more than one run in a day
+  var data = d3.nest()
+    .key(function(d) { return new Date(d.start_date);})
+    .rollup(function(d) { 
+    return d3.sum(d, function(g) {return g.distance; });
+  }).entries(data);
+  
+  // Set hours to 0, make the date a date, not a string
+  data.forEach(function(d){d.key = new Date(d.key); d.key.setHours(0,0,0,0)})
+
+  
+  // convert to miles
+  data.forEach(function(d){d.values = (d.values / 1000) * 0.621371});
+  
+  // newData of the desired time interval
+  newData = d3.time.day.range(d3.time.day.offset(new Date(), -66), new Date())
+
+  // map existing data and fill in missing dates with value 0
+  newData = newData.map(function(day){
+    return _.find(data, {key: day}) || {key: day, values: 0}; 
+  });
+      
+  // sum by past week for each day
+  for(var i = 6; i < newData.length; i++){
+    var weekSum = 0;
+    for(var j = 0; j<7; j++){
+      weekSum += newData[i-j].values;
+    }
+    newData[i]['sum'] = weekSum;
+  }
+
+  // drop the first 6 values
+  newData = newData.slice(6);
+
+  // CHART -----------------------
+  // call the charts made in separate files
+  chart1();
+  chart2();
+    
+
+</script>
